@@ -1,0 +1,17 @@
+{
+  global:
+    opx_asr_abi_version;
+    opx_asr_info;
+    opx_asr_string_free;
+    opx_asr_model_open;
+    opx_asr_model_info;
+    opx_asr_model_close;
+    opx_asr_job_create;
+    opx_asr_job_start;
+    opx_asr_job_poll;
+    opx_asr_job_cancel;
+    opx_asr_job_join;
+    opx_asr_job_result;
+    opx_asr_job_destroy;
+  local: *;
+};

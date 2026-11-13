@@ -1,0 +1,13 @@
+_opx_asr_abi_version
+_opx_asr_info
+_opx_asr_string_free
+_opx_asr_model_open
+_opx_asr_model_info
+_opx_asr_model_close
+_opx_asr_job_create
+_opx_asr_job_start
+_opx_asr_job_poll
+_opx_asr_job_cancel
+_opx_asr_job_join
+_opx_asr_job_result
+_opx_asr_job_destroy

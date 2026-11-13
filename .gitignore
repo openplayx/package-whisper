@@ -1,0 +1,8 @@
+.dart_tool/
+build/
+pubspec.lock
+.flutter-plugins-dependencies
+# Pinned whisper.cpp sources/builds are produced by tool/build_whisper.sh;
+# model weights are controlled assets and never committed.
+third_party/
+*.bin
