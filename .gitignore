@@ -6,3 +6,6 @@ pubspec.lock
 # model weights are controlled assets and never committed.
 third_party/
 *.bin
+# Android native build caches (CMake/NDK, Gradle)
+android/.cxx/
+android/.gradle/
