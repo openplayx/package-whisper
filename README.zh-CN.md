@@ -20,7 +20,7 @@ Go (openplayx-asr)   → cgo     ↗  same ABI, same result structure
 ```yaml
 dependencies:
   openplayx_whisper:
-    git: https://github.com/openplayx/whisper-package
+    git: https://github.com/openplayx/package-whisper
 ```
 
 ```dart

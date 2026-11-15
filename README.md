@@ -24,7 +24,7 @@ Add it as a path or git dependency (it is not published on pub.dev):
 ```yaml
 dependencies:
   openplayx_whisper:
-    git: https://github.com/openplayx/whisper-package
+    git: https://github.com/openplayx/package-whisper
 ```
 
 ```dart
