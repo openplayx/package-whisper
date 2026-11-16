@@ -16,7 +16,15 @@ endif()
 set(OPX_WHISPER_PREFIX "${CMAKE_CURRENT_SOURCE_DIR}/../third_party/whisper/${OPX_WHISPER_TARGET}"
     CACHE PATH "Pinned whisper.cpp install prefix")
 
-if(NOT WIN32 AND EXISTS "${OPX_WHISPER_PREFIX}/lib/libwhisper.a")
+if(WIN32 AND EXISTS "${OPX_WHISPER_PREFIX}/lib/whisper.lib")
+  # MSVC static libraries from tool/build_whisper.sh windows-x86_64; only the
+  # opx_asr_* functions are exported (OPX_ASR_API), whisper/ggml stay private.
+  add_library(openplayx_whisper SHARED "opx_asr.c")
+  target_include_directories(openplayx_whisper PRIVATE "${OPX_WHISPER_PREFIX}/include")
+  foreach(lib whisper ggml ggml-cpu ggml-base)
+    target_link_libraries(openplayx_whisper PRIVATE "${OPX_WHISPER_PREFIX}/lib/${lib}.lib")
+  endforeach()
+elseif(NOT WIN32 AND EXISTS "${OPX_WHISPER_PREFIX}/lib/libwhisper.a")
   add_library(openplayx_whisper SHARED "opx_asr.c")
   target_include_directories(openplayx_whisper PRIVATE "${OPX_WHISPER_PREFIX}/include")
   foreach(lib whisper ggml ggml-cpu ggml-base)

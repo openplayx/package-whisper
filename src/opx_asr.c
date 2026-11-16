@@ -21,7 +21,53 @@
 #include <stdlib.h>
 #include <string.h>
 
+#if defined(_WIN32)
+// Minimal pthread subset on Win32 (MSVC has no pthreads).
+#include <windows.h>
+#include <process.h>
+typedef CRITICAL_SECTION pthread_mutex_t;
+typedef HANDLE pthread_t;
+static int pthread_mutex_init(pthread_mutex_t *m, const void *attr) {
+  (void)attr;
+  InitializeCriticalSection(m);
+  return 0;
+}
+#define pthread_mutex_lock(m) (EnterCriticalSection(m), 0)
+#define pthread_mutex_unlock(m) (LeaveCriticalSection(m), 0)
+#define pthread_mutex_destroy(m) (DeleteCriticalSection(m), 0)
+typedef struct {
+  void *(*fn)(void *);
+  void *arg;
+} opx_thread_start;
+static unsigned __stdcall opx_thread_trampoline(void *p) {
+  opx_thread_start s = *(opx_thread_start *)p;
+  free(p);
+  s.fn(s.arg);
+  return 0;
+}
+static int pthread_create(pthread_t *t, const void *attr, void *(*fn)(void *), void *arg) {
+  (void)attr;
+  opx_thread_start *s = (opx_thread_start *)malloc(sizeof *s);
+  if (!s) return -1;
+  s->fn = fn;
+  s->arg = arg;
+  uintptr_t h = _beginthreadex(NULL, 0, opx_thread_trampoline, s, 0, NULL);
+  if (h == 0) {
+    free(s);
+    return -1;
+  }
+  *t = (HANDLE)h;
+  return 0;
+}
+static int pthread_join(pthread_t t, void **ret) {
+  (void)ret;
+  WaitForSingleObject(t, INFINITE);
+  CloseHandle(t);
+  return 0;
+}
+#else
 #include <pthread.h>
+#endif
 
 #include "whisper.h"
 

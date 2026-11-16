@@ -6,6 +6,7 @@
 #
 # Targets: macos-arm64 macos-x86_64 ios-arm64 ios-sim-arm64 ios-sim-x86_64
 #          linux-x86_64 linux-arm64 android-<abi>
+#          windows-x86_64 (Git Bash on Windows; MSVC via the Visual Studio generator)
 set -euo pipefail
 WHISPER_VERSION=1.9.5
 WHISPER_SHA256=ff1a9053feb509ff9d7729703355541ae9690073a6b1c40eb692c962e0dc1720
@@ -51,15 +52,18 @@ case "$target" in
     args+=(-DCMAKE_TOOLCHAIN_FILE="$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake"
            -DANDROID_ABI="${target#android-}" -DANDROID_PLATFORM=android-24) ;;
   linux-*) ;;
+  windows-x86_64)
+    # Static MSVC libraries matching the Flutter plugin's /MD runtime.
+    args+=(-G "Visual Studio 17 2022" -A x64 -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL) ;;
   *) echo "unknown target $target" >&2; exit 1 ;;
 esac
 
 build="$work/build/$target"
 cmake -S "$src" -B "$build" "${args[@]}" >/dev/null
 cmake --build "$build" --config Release -j"$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)"
-cmake --install "$build" >/dev/null
+cmake --install "$build" --config Release >/dev/null
 # Some generators put ggml's archives only in the build tree.
 mkdir -p "$prefix/lib"
-find "$build" -name 'libggml*.a' -exec cp -f {} "$prefix/lib/" \;
+find "$build" \( -name 'libggml*.a' -o -name 'ggml*.lib' -o -name 'whisper.lib' \) -exec cp -f {} "$prefix/lib/" \;
 printf 'whisper.cpp %s\n%s\n' "$WHISPER_VERSION" "${args[*]}" > "$prefix/BUILDINFO"
 echo "$prefix"
