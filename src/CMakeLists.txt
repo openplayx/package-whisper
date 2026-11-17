@@ -32,7 +32,10 @@ elseif(NOT WIN32 AND EXISTS "${OPX_WHISPER_PREFIX}/lib/libwhisper.a")
   endforeach()
   target_link_libraries(openplayx_whisper PRIVATE m)
   if(ANDROID)
-    target_link_libraries(openplayx_whisper PRIVATE log c++_static)
+    # whisper/ggml are C++: link with clang++ so the NDK adds the static
+    # libc++ and libc++abi (operator new, __cxa_guard_*) per ANDROID_STL.
+    set_target_properties(openplayx_whisper PROPERTIES LINKER_LANGUAGE CXX)
+    target_link_libraries(openplayx_whisper PRIVATE log)
     target_link_options(openplayx_whisper PRIVATE "-Wl,-z,max-page-size=16384")
   else()
     target_link_libraries(openplayx_whisper PRIVATE pthread stdc++)

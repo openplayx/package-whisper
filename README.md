@@ -69,7 +69,7 @@ BLAS are off until verified per build/model/device.
 | Windows | Stub until a Windows build is added. |
 
 Verified: macOS arm64 (host tests, an app bundle integration test, and the Go
-service). The iOS, Android and Linux scripts exist but are not yet verified.
+service). iOS simulator and Android emulator (arm64-v8a, API 37): the app's `whisper_bridge_test` integration test passes; armeabi-v7a and x86_64 link and package. The Linux script exists but is not yet verified.
 
 ## Tests
 

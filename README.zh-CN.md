@@ -52,7 +52,7 @@ model.close();                                     // 任务仍在使用时也�
 | Android / Linux | `src/CMakeLists.txt` 加版本脚本。没有构建产物时编译 `opx_asr_stub.c`（报告不可用）。 |
 | Windows | 在加入 Windows 构建之前是 stub。 |
 
-已验证：macOS arm64（宿主测试、App 打包集成测试和 Go 服务）。iOS、Android 和 Linux 的脚本已有，但尚未验证。
+已验证：macOS arm64（宿主测试、App 打包集成测试和 Go 服务）。iOS 模拟器与 Android 模拟器（arm64-v8a，API 37）：App 的 `whisper_bridge_test` 集成测试通过；armeabi-v7a 与 x86_64 可链接并打包。Linux 脚本已有，但尚未验证。
 
 ## 测试
 
