@@ -10,7 +10,7 @@ a Flutter FFI plugin over the pinned **whisper.cpp 1.9.5**, plus a small C ABI
 links as well.
 
 ```
-Dart (WhisperEngine) → dart:ffi → opx_asr_* C ABI (src/opx_asr.c) → whisper.cpp / ggml (CPU)
+Dart (WhisperEngine) → dart:ffi → opx_asr_* C ABI (src/opx_asr.c) → whisper.cpp / ggml (GPU, CPU fallback)
 Go (openplayx-asr)   → cgo     ↗  same ABI, same result structure
 ```
 
@@ -58,18 +58,39 @@ model.close();                                     // safe while a job still use
 Requirements: Flutter 3.24+ (Dart 3.13+), a C/C++ toolchain, CMake and `curl`.
 
 `tool/build_whisper.sh <target>` downloads the pinned whisper.cpp tarball
-(sha256 checked) and builds static CPU libraries into
-`third_party/whisper/<target>` (git-ignored). Metal, Core ML, CUDA, OpenMP and
-BLAS are off until verified per build/model/device.
+(sha256 checked) and builds static libraries into
+`third_party/whisper/<target>` (git-ignored), with hardware acceleration:
+
+| Target | Acceleration |
+|---|---|
+| macOS / iOS | Metal (GPU) + Core ML encoder (used when a `*-encoder.mlmodelc` sits next to the model). No ggml-blas: Accelerate's new `cblas_sgemm` needs macOS 13.3 / iOS 16.4, above the app's floor. |
+| tvOS | Metal + Core ML + Accelerate BLAS |
+| Android arm64-v8a / x86_64 | Vulkan (needs a Vulkan 1.2 driver; API 28+). The pinned Vulkan-Headers and SPIRV-Headers are downloaded, glslc comes from the NDK. |
+| Android armeabi-v7a | CPU (ggml-vulkan is 64-bit only) |
+| Linux / Windows | Vulkan when the build machine has the toolchain (Linux: `libvulkan-dev spirv-headers glslc`; Windows: the Vulkan SDK with `VULKAN_SDK` set), otherwise CPU-only with a warning |
+
+The CPU backend is always linked: without a usable GPU (simulators, the
+Android emulator's Vulkan 1.1, a server without a GPU) recognition runs on the
+CPU. `openModel(path, gpu: false)` forces the CPU, and `WhisperModel.backend` /
+`device` tell which device a model got (`MTL0` / `Vulkan0` / `CPU`). Bump
+`OPX_BUILD_REV` in the script when the flags change, so Apple builds and
+`build_host_lib.sh` rebuild stale libraries. On Linux and Windows the plugin
+links the Vulkan loader (`libvulkan.so.1` / `vulkan-1.dll`, installed with GPU
+drivers); without it the library does not load and the engine reports
+unavailable.
 
 | Platform | How it links |
 |---|---|
 | macOS / iOS / tvOS | The podspec compiles the ABI; `tool/ensure_whisper_apple.sh` builds missing arches on first build. Only `opx_asr_*` is exported. |
-| Android / Linux | `src/CMakeLists.txt` with a version script. Without a build it compiles `opx_asr_stub.c` (reports unavailable). |
-| Windows | Stub until a Windows build is added. |
+| Android / Linux / Windows | `src/CMakeLists.txt` links the libraries listed in the build's `LINKLIBS` (plus the Vulkan loader), with a version script on Android / Linux. Without a build it compiles `opx_asr_stub.c` (reports unavailable). |
 
-Verified: macOS arm64 (host tests, an app bundle integration test, and the Go
-service). iOS simulator and Android emulator (arm64-v8a, API 37): the app's `whisper_bridge_test` integration test passes; armeabi-v7a and x86_64 link and package. The Linux script exists but is not yet verified.
+Verified: macOS arm64 on Metal (host tests, the app bundle integration test and
+the Go service; base model about 4.7x faster than the CPU on a 153 s clip, same
+text). iOS simulator and Android emulator (arm64-v8a): the app's
+`whisper_bridge_test` passes on the CPU fallback. iOS device and tvOS
+libraries, macOS x86_64, Android armeabi-v7a / x86_64 and Linux arm64 (Docker,
+Vulkan linked, CPU fallback) build. Not yet run: Metal on an iPhone / Apple
+TV, Vulkan on a real Android phone, Windows.
 
 ## Tests
 

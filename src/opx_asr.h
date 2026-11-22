@@ -68,10 +68,13 @@ OPX_ASR_API char *opx_asr_info(void);
 OPX_ASR_API void opx_asr_string_free(char *value);
 
 // Blocking (reads the whole model): call from a worker thread/isolate.
-// options_json: {"path":"/abs/model.bin"}. GPU is never requested.
+// options_json: {"path":"/abs/model.bin","gpu":true}. "gpu" (default true)
+// uses the build's GPU backend (Metal / Vulkan) when a device is available;
+// false forces the CPU. Apple simulators always use the CPU.
 OPX_ASR_API int32_t opx_asr_model_open(const char *options_json,
                                        opx_asr_model **model);
-// {"type":"base","multilingual":true}. Free with opx_asr_string_free.
+// {"type":"base","multilingual":true,"backend":"MTL0","device":"Apple M4 Max"}
+// ("backend":"CPU","device":"" without a GPU). Free with opx_asr_string_free.
 OPX_ASR_API char *opx_asr_model_info(opx_asr_model *model);
 // Releases the caller's reference. The model is freed once no job uses it,
 // so closing while a job still runs is safe.

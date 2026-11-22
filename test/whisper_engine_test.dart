@@ -44,6 +44,20 @@ void main() {
     expect(loaded.multilingual, isTrue);
   }, skip: skip);
 
+  test('model runs on the GPU backend; gpu: false forces the CPU', () async {
+    if (Platform.isMacOS) {
+      expect(loaded.backend, startsWith('MTL'));
+      expect(loaded.device, isNotEmpty);
+    }
+    final cpu = await engine.openModel(model, gpu: false);
+    addTearDown(cpu.close);
+    expect(cpu.backend, 'CPU');
+    final r = await engine
+        .transcribe(cpu, AsrRequest(input: fixture('en.wav'), language: 'en'))
+        .done;
+    expect(r.succeeded, isTrue);
+  }, skip: skip);
+
   test('English speech gives timed text', () async {
     final r = await engine
         .transcribe(

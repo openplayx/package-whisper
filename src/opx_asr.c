@@ -72,6 +72,7 @@ static int pthread_join(pthread_t t, void **ret) {
 #include <pthread.h>
 #endif
 
+#include "ggml-backend.h"
 #include "whisper.h"
 
 #define OPX_ASR_MAX_TEXT 4096
@@ -318,6 +319,14 @@ static int json_str(const char *json, const char *key, char *out,
   return json_find(json, key, out, cap) == 1;
 }
 
+static int json_bool(const char *json, const char *key, int fallback) {
+  char v[8];
+  if (json_find(json, key, v, sizeof v) != 2) return fallback;
+  if (strcmp(v, "true") == 0) return 1;
+  if (strcmp(v, "false") == 0) return 0;
+  return fallback;
+}
+
 static int is_absolute_path(const char *path) {
   return path[0] == '/' && !strstr(path, "://");
 }
@@ -409,6 +418,8 @@ static int wav_read(wav_input *w, int64_t first, int64_t count, float *out) {
 
 struct opx_asr_model {
   struct whisper_context *ctx;
+  char backend[64];          // ggml device running the model, e.g. MTL0, Vulkan0, CPU
+  char device[128];          // its description, e.g. Apple M2 Max
   pthread_mutex_t lock;      // one recognition at a time per context
   pthread_mutex_t ref_lock;
   int refs;
@@ -457,14 +468,16 @@ int32_t opx_asr_model_open(const char *options_json, opx_asr_model **model) {
   fclose(probe);
   whisper_log_set(quiet_log, NULL);
   struct whisper_context_params cp = whisper_context_default_params();
-#if defined(TARGET_OS_TV) && TARGET_OS_TV
-  // MTLSimDevice traps in weight-buffer uploads; real devices retain Metal.
-  cp.use_gpu = !TARGET_OS_SIMULATOR;
-  cp.flash_attn = true;
-#else
+  // GPU backend from the build (Metal on Apple, Vulkan elsewhere); ggml keeps
+  // the CPU backend as the fallback when no usable device is found. The host
+  // can force the CPU with {"gpu": false}.
+  cp.use_gpu = json_bool(options_json, "gpu", 1);
+#if defined(TARGET_OS_SIMULATOR) && TARGET_OS_SIMULATOR
+  // MTLSimDevice (iOS/tvOS simulators) traps in buffer upload for Whisper
+  // weights (XPC shmem). Devices keep Metal; simulators use Core ML/CPU.
   cp.use_gpu = false;
-  cp.flash_attn = false;
 #endif
+  cp.flash_attn = true;
   struct whisper_context *ctx =
       whisper_init_from_file_with_params_no_state(path, cp);
   if (!ctx) return OPX_ASR_E_MODEL_UNAVAILABLE;
@@ -475,6 +488,19 @@ int32_t opx_asr_model_open(const char *options_json, opx_asr_model **model) {
   }
   m->ctx = ctx;
   m->refs = 1;
+  // Same choice as whisper_backend_init_gpu: the first GPU/iGPU device when
+  // use_gpu is set, otherwise (or when there is none) the CPU.
+  snprintf(m->backend, sizeof m->backend, "CPU");
+  m->device[0] = 0;
+  for (size_t i = 0; cp.use_gpu && i < ggml_backend_dev_count(); i++) {
+    ggml_backend_dev_t dev = ggml_backend_dev_get(i);
+    enum ggml_backend_dev_type t = ggml_backend_dev_type(dev);
+    if (t == GGML_BACKEND_DEVICE_TYPE_GPU || t == GGML_BACKEND_DEVICE_TYPE_IGPU) {
+      snprintf(m->backend, sizeof m->backend, "%s", ggml_backend_dev_name(dev));
+      snprintf(m->device, sizeof m->device, "%s", ggml_backend_dev_description(dev));
+      break;
+    }
+  }
   pthread_mutex_init(&m->lock, NULL);
   pthread_mutex_init(&m->ref_lock, NULL);
   *model = m;
@@ -486,8 +512,12 @@ char *opx_asr_model_info(opx_asr_model *model) {
   sbuf b = {0};
   sb_put(&b, "{\"type\":", 8);
   sb_json(&b, whisper_model_type_readable(model->ctx), 32);
-  sb_printf(&b, ",\"multilingual\":%s}",
+  sb_printf(&b, ",\"multilingual\":%s,\"backend\":",
             whisper_is_multilingual(model->ctx) ? "true" : "false");
+  sb_json(&b, model->backend, sizeof model->backend);
+  sb_printf(&b, ",\"device\":");
+  sb_json(&b, model->device, sizeof model->device);
+  sb_put(&b, "}", 1);
   return sb_take(&b);
 }
 

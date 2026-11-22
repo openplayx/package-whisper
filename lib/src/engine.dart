@@ -18,7 +18,9 @@ class WhisperModel {
     this.path,
     Map<String, dynamic> info,
   ) : type = info['type'] as String? ?? 'unknown',
-      multilingual = info['multilingual'] as bool? ?? false;
+      multilingual = info['multilingual'] as bool? ?? false,
+      backend = info['backend'] as String? ?? 'CPU',
+      device = info['device'] as String? ?? '';
   final WhisperEngine _engine;
   Pointer<OpxAsrModel>? _handle;
   final String path;
@@ -26,6 +28,13 @@ class WhisperModel {
 
   /// English-only (`.en`) models cannot transcribe e.g. Chinese.
   final bool multilingual;
+
+  /// ggml device running this model: `MTL0` (Metal), `Vulkan0`, or `CPU`
+  /// when the GPU is off or unavailable.
+  final String backend;
+
+  /// The device's description (e.g. `Apple M2 Max`); empty for the CPU.
+  final String device;
   bool get closed => _handle == null;
 
   void close() {
@@ -82,12 +91,14 @@ class WhisperEngine {
   bool get available => info().available;
 
   /// Loads a model file on a worker isolate (it reads hundreds of MB).
-  Future<WhisperModel> openModel(String path) async {
+  /// [gpu] uses the build's GPU backend (Metal / Vulkan) when a device is
+  /// available; false forces the CPU.
+  Future<WhisperModel> openModel(String path, {bool gpu = true}) async {
     if (!available) throw const AsrException(AsrErrorCode.unavailable);
     final lib = _libraryPath;
     try {
       final (address, info) = await Isolate.run(
-        () => AsrNative.load(path: lib).openModelSync(path),
+        () => AsrNative.load(path: lib).openModelSync(path, gpu: gpu),
       );
       return WhisperModel._(
         this,

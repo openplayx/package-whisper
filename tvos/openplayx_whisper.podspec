@@ -1,6 +1,7 @@
 # In-process speech recognition: compiles the opx_asr C ABI and links the
-# pinned whisper.cpp / ggml static libraries (CPU backend) into this plugin's
-# framework. Only opx_asr_* symbols are exported.
+# pinned whisper.cpp / ggml static libraries (Metal + Core ML + Accelerate,
+# CPU fallback) into this plugin's framework. Only opx_asr_* symbols are
+# exported.
 Pod::Spec.new do |s|
   s.name = 'openplayx_whisper'
   s.version = '0.1.0'

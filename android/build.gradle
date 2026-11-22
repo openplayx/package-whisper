@@ -30,7 +30,8 @@ android {
         }
     }
     defaultConfig {
-        minSdk = 24
+        // 28: libvulkan.so exports the Vulkan 1.1 core API ggml-vulkan links.
+        minSdk = 28
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17

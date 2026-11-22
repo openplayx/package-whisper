@@ -1,6 +1,7 @@
 # In-process speech recognition: compiles the opx_asr C ABI and links the
-# pinned whisper.cpp / ggml static libraries (CPU backend) into this plugin's
-# framework. Only opx_asr_* symbols are exported.
+# pinned whisper.cpp / ggml static libraries (Metal + Core ML, Accelerate
+# CPU fallback) into this plugin's framework. Only opx_asr_* symbols are
+# exported.
 Pod::Spec.new do |s|
   s.name = 'openplayx_whisper'
   s.version = '0.1.0'
@@ -12,7 +13,7 @@ Pod::Spec.new do |s|
   s.source_files = 'Classes/**/*'
   s.ios.deployment_target = '15.0'
   s.dependency 'Flutter'
-  s.frameworks = 'Accelerate', 'Foundation'
+  s.frameworks = 'Accelerate', 'Foundation', 'Metal', 'MetalKit', 'CoreML'
   s.libraries = 'c++'
   s.script_phase = {
     :name => 'Build pinned whisper.cpp',
@@ -28,7 +29,7 @@ Pod::Spec.new do |s|
     'HEADER_SEARCH_PATHS[sdk=iphoneos*]' => '"${PODS_TARGET_SRCROOT}/../third_party/whisper/ios-arm64/include"',
     'HEADER_SEARCH_PATHS[sdk=iphonesimulator*][arch=arm64]' => '"${PODS_TARGET_SRCROOT}/../third_party/whisper/ios-sim-arm64/include"',
     'HEADER_SEARCH_PATHS[sdk=iphonesimulator*][arch=x86_64]' => '"${PODS_TARGET_SRCROOT}/../third_party/whisper/ios-sim-x86_64/include"',
-    'OTHER_LDFLAGS' => '-lwhisper -lggml -lggml-cpu -lggml-base -Wl,-exported_symbols_list,"${PODS_TARGET_SRCROOT}/../src/exports.txt"',
+    'OTHER_LDFLAGS' => '-lwhisper -lwhisper.coreml -lggml-metal -lggml -lggml-cpu -lggml-base -Wl,-exported_symbols_list,"${PODS_TARGET_SRCROOT}/../src/exports.txt"',
     'GCC_SYMBOLS_PRIVATE_EXTERN' => 'YES',
     'WARNING_CFLAGS' => '-Wno-documentation',
   }

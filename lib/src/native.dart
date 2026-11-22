@@ -164,8 +164,8 @@ class AsrNative {
 
   /// Blocking model load; returns the handle address (valid process-wide)
   /// and the model description. Call from a worker isolate.
-  (int, Map<String, dynamic>) openModelSync(String path) {
-    final options = jsonEncode({'path': path}).toNativeUtf8();
+  (int, Map<String, dynamic>) openModelSync(String path, {bool gpu = true}) {
+    final options = jsonEncode({'path': path, 'gpu': gpu}).toNativeUtf8();
     final out = calloc<Pointer<OpxAsrModel>>();
     try {
       final code = modelOpen(options, out);

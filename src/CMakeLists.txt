@@ -16,34 +16,51 @@ endif()
 set(OPX_WHISPER_PREFIX "${CMAKE_CURRENT_SOURCE_DIR}/../third_party/whisper/${OPX_WHISPER_TARGET}"
     CACHE PATH "Pinned whisper.cpp install prefix")
 
-if(WIN32 AND EXISTS "${OPX_WHISPER_PREFIX}/lib/whisper.lib")
-  # MSVC static libraries from tool/build_whisper.sh windows-x86_64; only the
-  # opx_asr_* functions are exported (OPX_ASR_API), whisper/ggml stay private.
-  add_library(openplayx_whisper SHARED "opx_asr.c")
-  target_include_directories(openplayx_whisper PRIVATE "${OPX_WHISPER_PREFIX}/include")
-  foreach(lib whisper ggml ggml-cpu ggml-base)
-    target_link_libraries(openplayx_whisper PRIVATE "${OPX_WHISPER_PREFIX}/lib/${lib}.lib")
-  endforeach()
-elseif(NOT WIN32 AND EXISTS "${OPX_WHISPER_PREFIX}/lib/libwhisper.a")
-  add_library(openplayx_whisper SHARED "opx_asr.c")
-  target_include_directories(openplayx_whisper PRIVATE "${OPX_WHISPER_PREFIX}/include")
-  foreach(lib whisper ggml ggml-cpu ggml-base)
-    target_link_libraries(openplayx_whisper PRIVATE "${OPX_WHISPER_PREFIX}/lib/lib${lib}.a")
-  endforeach()
-  target_link_libraries(openplayx_whisper PRIVATE m)
-  if(ANDROID)
-    # whisper/ggml are C++: link with clang++ so the NDK adds the static
-    # libc++ and libc++abi (operator new, __cxa_guard_*) per ANDROID_STL.
-    set_target_properties(openplayx_whisper PROPERTIES LINKER_LANGUAGE CXX)
-    target_link_libraries(openplayx_whisper PRIVATE log)
-    target_link_options(openplayx_whisper PRIVATE "-Wl,-z,max-page-size=16384")
-  else()
-    target_link_libraries(openplayx_whisper PRIVATE pthread stdc++)
+if(WIN32)
+  set(OPX_WHISPER_LIB_FMT "${OPX_WHISPER_PREFIX}/lib/@.lib")
+else()
+  set(OPX_WHISPER_LIB_FMT "${OPX_WHISPER_PREFIX}/lib/lib@.a")
+endif()
+string(REPLACE "@" "whisper" OPX_WHISPER_MAIN_LIB "${OPX_WHISPER_LIB_FMT}")
+
+if(EXISTS "${OPX_WHISPER_MAIN_LIB}")
+  # Static libraries from tool/build_whisper.sh, in the link order it wrote to
+  # LINKLIBS (GPU backends before ggml-cpu / ggml-base). Only the opx_asr_*
+  # functions are exported; whisper/ggml stay private.
+  set(OPX_WHISPER_LIBS whisper ggml ggml-cpu ggml-base)
+  if(EXISTS "${OPX_WHISPER_PREFIX}/LINKLIBS")
+    file(STRINGS "${OPX_WHISPER_PREFIX}/LINKLIBS" OPX_WHISPER_LIBS)
   endif()
-  # Keep whisper/ggml symbols private (no clash with other native modules).
-  target_link_options(openplayx_whisper PRIVATE
-    "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/exports.map"
-    "-Wl,-Bsymbolic")
+  add_library(openplayx_whisper SHARED "opx_asr.c")
+  target_include_directories(openplayx_whisper PRIVATE "${OPX_WHISPER_PREFIX}/include")
+  foreach(lib ${OPX_WHISPER_LIBS})
+    string(REPLACE "@" "${lib}" lib_path "${OPX_WHISPER_LIB_FMT}")
+    target_link_libraries(openplayx_whisper PRIVATE "${lib_path}")
+  endforeach()
+  if("ggml-vulkan" IN_LIST OPX_WHISPER_LIBS)
+    if(ANDROID)
+      target_link_libraries(openplayx_whisper PRIVATE vulkan)  # system libvulkan.so
+    else()
+      find_package(Vulkan REQUIRED)  # loader: libvulkan.so.1 / vulkan-1.dll
+      target_link_libraries(openplayx_whisper PRIVATE Vulkan::Vulkan)
+    endif()
+  endif()
+  if(NOT WIN32)
+    target_link_libraries(openplayx_whisper PRIVATE m)
+    if(ANDROID)
+      # whisper/ggml are C++: link with clang++ so the NDK adds the static
+      # libc++ and libc++abi (operator new, __cxa_guard_*) per ANDROID_STL.
+      set_target_properties(openplayx_whisper PROPERTIES LINKER_LANGUAGE CXX)
+      target_link_libraries(openplayx_whisper PRIVATE log)
+      target_link_options(openplayx_whisper PRIVATE "-Wl,-z,max-page-size=16384")
+    else()
+      target_link_libraries(openplayx_whisper PRIVATE pthread stdc++)
+    endif()
+    # Keep whisper/ggml symbols private (no clash with other native modules).
+    target_link_options(openplayx_whisper PRIVATE
+      "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/exports.map"
+      "-Wl,-Bsymbolic")
+  endif()
 else()
   message(WARNING "openplayx_whisper: no whisper.cpp at ${OPX_WHISPER_PREFIX}; building unavailable stub")
   add_library(openplayx_whisper SHARED "opx_asr_stub.c")

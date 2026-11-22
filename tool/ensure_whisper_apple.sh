@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Xcode build phase: builds the pinned whisper.cpp for each arch being linked,
-# only when its static libraries are missing.
+# only when its static libraries are missing or were built with older flags.
 set -euo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
+rev="$(sed -n 's/^OPX_BUILD_REV=//p' "$root/tool/build_whisper.sh")"
 case "${PLATFORM_NAME:-macosx}" in
   macosx) prefix=macos ;;
   iphoneos) prefix=ios ;;
@@ -14,7 +15,7 @@ esac
 for arch in ${ARCHS:-arm64}; do
   target="$prefix-$arch"
   if [ ! -f "$root/third_party/whisper/$target/lib/libwhisper.a" ] ||
-     { [[ "$target" == tvos-* ]] && ! grep -q 'GGML_METAL=ON' "$root/third_party/whisper/$target/BUILDINFO"; }; then
+     ! grep -qx "OPX_BUILD_REV=$rev" "$root/third_party/whisper/$target/BUILDINFO" 2>/dev/null; then
     env -i PATH="/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin:/usr/local/bin" \
       HOME="$HOME" DEVELOPER_DIR="${DEVELOPER_DIR:-}" \
       bash "$root/tool/build_whisper.sh" "$target"
