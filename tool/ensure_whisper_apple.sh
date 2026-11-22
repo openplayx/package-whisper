@@ -7,6 +7,8 @@ case "${PLATFORM_NAME:-macosx}" in
   macosx) prefix=macos ;;
   iphoneos) prefix=ios ;;
   iphonesimulator) prefix=ios-sim ;;
+  appletvos) prefix=tvos ;;
+  appletvsimulator) prefix=tvos-sim ;;
   *) echo "unsupported platform $PLATFORM_NAME" >&2; exit 1 ;;
 esac
 for arch in ${ARCHS:-arm64}; do

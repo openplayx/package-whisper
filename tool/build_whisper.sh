@@ -43,6 +43,10 @@ args=(
 )
 case "$target" in
   macos-*) args+=(-DCMAKE_OSX_ARCHITECTURES="${target#macos-}" -DCMAKE_OSX_DEPLOYMENT_TARGET=12.0) ;;
+  tvos-sim-*) args+=(-DCMAKE_SYSTEM_NAME=tvOS -DCMAKE_OSX_SYSROOT=appletvsimulator
+                    -DCMAKE_OSX_ARCHITECTURES="${target#tvos-sim-}" -DCMAKE_OSX_DEPLOYMENT_TARGET=15.0) ;;
+  tvos-*) args+=(-DCMAKE_SYSTEM_NAME=tvOS -DCMAKE_OSX_SYSROOT=appletvos
+                -DCMAKE_OSX_ARCHITECTURES="${target#tvos-}" -DCMAKE_OSX_DEPLOYMENT_TARGET=15.0) ;;
   ios-sim-*) args+=(-DCMAKE_SYSTEM_NAME=iOS -DCMAKE_OSX_SYSROOT=iphonesimulator
                     -DCMAKE_OSX_ARCHITECTURES="${target#ios-sim-}" -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0) ;;
   ios-*) args+=(-DCMAKE_SYSTEM_NAME=iOS -DCMAKE_OSX_SYSROOT=iphoneos

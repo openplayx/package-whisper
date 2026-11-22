@@ -48,7 +48,7 @@ model.close();                                     // 任务仍在使用时也�
 
 | 平台 | 链接方式 |
 |---|---|
-| macOS / iOS | podspec 编译 ABI；首次构建时 `tool/ensure_whisper_apple.sh` 补齐缺失的架构。只导出 `opx_asr_*`。 |
+| macOS / iOS / tvOS | podspec 编译 ABI；首次构建时 `tool/ensure_whisper_apple.sh` 补齐缺失的架构。只导出 `opx_asr_*`。 |
 | Android / Linux | `src/CMakeLists.txt` 加版本脚本。没有构建产物时编译 `opx_asr_stub.c`（报告不可用）。 |
 | Windows | 在加入 Windows 构建之前是 stub。 |
 
@@ -74,3 +74,5 @@ flutter test             # 真实识别；需要 ~/.cache/openplayx-asr-models/g
 ## 许可证
 
 [MIT](LICENSE)。whisper.cpp 和 Whisper 模型权重由其作者以 MIT 许可证发布。
+
+Apple TV：`tvos-arm64` 为真机目标，`tvos-sim-arm64` 为 Apple Silicon 模拟器目标；`tvos/` podspec 链接真实 whisper.cpp 引擎，不复用 iOS 二进制。

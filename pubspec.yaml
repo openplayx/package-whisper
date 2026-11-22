@@ -20,6 +20,8 @@ flutter:
         ffiPlugin: true
       ios:
         ffiPlugin: true
+      tvos:
+        ffiPlugin: true
       macos:
         ffiPlugin: true
       linux:

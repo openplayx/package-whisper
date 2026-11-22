@@ -64,7 +64,7 @@ BLAS are off until verified per build/model/device.
 
 | Platform | How it links |
 |---|---|
-| macOS / iOS | The podspec compiles the ABI; `tool/ensure_whisper_apple.sh` builds missing arches on first build. Only `opx_asr_*` is exported. |
+| macOS / iOS / tvOS | The podspec compiles the ABI; `tool/ensure_whisper_apple.sh` builds missing arches on first build. Only `opx_asr_*` is exported. |
 | Android / Linux | `src/CMakeLists.txt` with a version script. Without a build it compiles `opx_asr_stub.c` (reports unavailable). |
 | Windows | Stub until a Windows build is added. |
 
@@ -98,3 +98,5 @@ Report security problems privately as described in [SECURITY.md](SECURITY.md).
 
 [MIT](LICENSE). whisper.cpp and the Whisper model weights are MIT licensed by
 their authors.
+
+Apple TV: `tvos-arm64` builds for hardware and `tvos-sim-arm64` for the Apple Silicon simulator. The dedicated `tvos/` podspec links the real engine through the FlutterTV embedder; iOS binaries are never reused for tvOS.
