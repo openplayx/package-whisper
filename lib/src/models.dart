@@ -41,14 +41,17 @@ class AsrEngineInfo {
   AsrEngineInfo.fromJson(Map<String, dynamic> j)
     : available = j['available'] as bool? ?? false,
       engine = j['engine'] as String? ?? 'whisper.cpp',
-      engineVersion = j['engine_version'] as String? ?? '';
+      engineVersion = j['engine_version'] as String? ?? '',
+      systemInfo = j['system'] as String? ?? '';
   const AsrEngineInfo.unavailable()
     : available = false,
       engine = 'whisper.cpp',
-      engineVersion = '';
+      engineVersion = '',
+      systemInfo = '';
   final bool available;
   final String engine;
   final String engineVersion;
+  final String systemInfo;
 }
 
 /// One recognition request on a normalised 16 kHz mono s16 WAV.

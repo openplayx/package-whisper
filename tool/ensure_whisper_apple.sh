@@ -13,7 +13,8 @@ case "${PLATFORM_NAME:-macosx}" in
 esac
 for arch in ${ARCHS:-arm64}; do
   target="$prefix-$arch"
-  if [ ! -f "$root/third_party/whisper/$target/lib/libwhisper.a" ]; then
+  if [ ! -f "$root/third_party/whisper/$target/lib/libwhisper.a" ] ||
+     { [[ "$target" == tvos-* ]] && ! grep -q 'GGML_METAL=ON' "$root/third_party/whisper/$target/BUILDINFO"; }; then
     env -i PATH="/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin:/usr/local/bin" \
       HOME="$HOME" DEVELOPER_DIR="${DEVELOPER_DIR:-}" \
       bash "$root/tool/build_whisper.sh" "$target"

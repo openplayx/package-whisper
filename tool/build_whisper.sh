@@ -62,6 +62,11 @@ case "$target" in
   *) echo "unknown target $target" >&2; exit 1 ;;
 esac
 
+# Enable the Apple acceleration paths for the dedicated Apple TV target.
+if [[ "$target" == tvos-* ]]; then
+  args+=(-DWHISPER_COREML=ON -DWHISPER_COREML_ALLOW_FALLBACK=ON
+         -DGGML_METAL=ON -DGGML_METAL_EMBED_LIBRARY=ON -DGGML_BLAS=ON)
+fi
 build="$work/build/$target"
 cmake -S "$src" -B "$build" "${args[@]}" >/dev/null
 cmake --build "$build" --config Release -j"$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)"

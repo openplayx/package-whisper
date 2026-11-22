@@ -1,3 +1,6 @@
+#if defined(__APPLE__)
+#include <TargetConditionals.h>
+#endif
 // OpenPlayX speech recognition bridge over whisper.cpp's public C API.
 //
 // - Input is a 16 kHz mono 16-bit PCM WAV produced by the host's controlled
@@ -454,8 +457,14 @@ int32_t opx_asr_model_open(const char *options_json, opx_asr_model **model) {
   fclose(probe);
   whisper_log_set(quiet_log, NULL);
   struct whisper_context_params cp = whisper_context_default_params();
-  cp.use_gpu = false;  // CPU baseline; accelerators need separate validation
+#if defined(TARGET_OS_TV) && TARGET_OS_TV
+  // MTLSimDevice traps in weight-buffer uploads; real devices retain Metal.
+  cp.use_gpu = !TARGET_OS_SIMULATOR;
+  cp.flash_attn = true;
+#else
+  cp.use_gpu = false;
   cp.flash_attn = false;
+#endif
   struct whisper_context *ctx =
       whisper_init_from_file_with_params_no_state(path, cp);
   if (!ctx) return OPX_ASR_E_MODEL_UNAVAILABLE;

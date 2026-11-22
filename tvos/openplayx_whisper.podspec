@@ -11,7 +11,7 @@ Pod::Spec.new do |s|
   s.source = { :path => '.' }
   s.source_files = 'Classes/**/*'
   s.tvos.deployment_target = '15.0'
-  s.frameworks = 'Accelerate', 'Foundation'
+  s.frameworks = 'Accelerate', 'Foundation', 'Metal', 'MetalKit', 'CoreML'
   s.libraries = 'c++'
   s.script_phase = {
     :name => 'Build pinned whisper.cpp',
@@ -28,7 +28,7 @@ Pod::Spec.new do |s|
     'HEADER_SEARCH_PATHS[sdk=appletvos*]' => '"${PODS_TARGET_SRCROOT}/../third_party/whisper/tvos-arm64/include"',
     'HEADER_SEARCH_PATHS[sdk=appletvsimulator*][arch=arm64]' => '"${PODS_TARGET_SRCROOT}/../third_party/whisper/tvos-sim-arm64/include"',
     'HEADER_SEARCH_PATHS[sdk=appletvsimulator*][arch=x86_64]' => '"${PODS_TARGET_SRCROOT}/../third_party/whisper/tvos-sim-x86_64/include"',
-    'OTHER_LDFLAGS' => '-lwhisper -lggml -lggml-cpu -lggml-base -Wl,-exported_symbols_list,"${PODS_TARGET_SRCROOT}/../src/exports.txt"',
+    'OTHER_LDFLAGS' => '-lwhisper -lwhisper.coreml -lggml-metal -lggml-blas -lggml -lggml-cpu -lggml-base -Wl,-exported_symbols_list,"${PODS_TARGET_SRCROOT}/../src/exports.txt"',
     'GCC_SYMBOLS_PRIVATE_EXTERN' => 'YES',
     'WARNING_CFLAGS' => '-Wno-documentation',
   }
