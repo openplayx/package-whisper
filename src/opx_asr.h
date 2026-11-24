@@ -62,8 +62,9 @@ typedef struct {
 
 OPX_ASR_API uint32_t opx_asr_abi_version(void);
 
-// {"abi":1,"available":true,"engine":"whisper.cpp","engine_version":"1.9.5",
-//  "system":"..."}. Free with opx_asr_string_free.
+// {"abi":1,"available":true,"engine":"whisper.cpp","engine_version":"1.9.5"}.
+// Cheap and safe on a UI thread: it never initializes compute backends.
+// Free with opx_asr_string_free.
 OPX_ASR_API char *opx_asr_info(void);
 OPX_ASR_API void opx_asr_string_free(char *value);
 

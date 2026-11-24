@@ -442,12 +442,16 @@ static void quiet_log(enum ggml_log_level level, const char *text, void *ud) {
 
 uint32_t opx_asr_abi_version(void) { return OPX_ASR_ABI; }
 
+// Must stay cheap: hosts call it synchronously on the UI thread. Do not call
+// whisper_print_system_info() (or anything else touching the ggml backend
+// registry) here — that initializes every backend, and on Apple the Metal
+// backend compiles its embedded shader library, blocking for seconds (app
+// hang / watchdog kill on iOS). Backends are initialized by model_open, which
+// hosts run on a worker.
 char *opx_asr_info(void) {
   sbuf b = {0};
   sb_printf(&b, "{\"abi\":1,\"available\":true,\"engine\":\"whisper.cpp\",\"engine_version\":");
   sb_json(&b, whisper_version(), 64);
-  sb_printf(&b, ",\"system\":");
-  sb_json(&b, whisper_print_system_info(), 400);
   sb_put(&b, "}", 1);
   return sb_take(&b);
 }

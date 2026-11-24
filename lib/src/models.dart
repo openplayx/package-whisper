@@ -51,6 +51,8 @@ class AsrEngineInfo {
   final bool available;
   final String engine;
   final String engineVersion;
+  /// Deprecated: no longer reported (gathering it initialized every compute
+  /// backend, which blocked the calling thread for seconds). Always ''.
   final String systemInfo;
 }
 
