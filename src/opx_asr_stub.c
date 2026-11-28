@@ -9,8 +9,9 @@
 uint32_t opx_asr_abi_version(void) { return OPX_ASR_ABI; }
 char *opx_asr_info(void) {
   const char *text = "{\"abi\":1,\"available\":false,\"engine\":\"whisper.cpp\"}";
-  char *copy = malloc(strlen(text) + 1);
-  if (copy) strcpy(copy, text);
+  size_t size = strlen(text) + 1;
+  char *copy = malloc(size);
+  if (copy) memcpy(copy, text, size);
   return copy;
 }
 void opx_asr_string_free(char *value) { free(value); }

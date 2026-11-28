@@ -18,6 +18,7 @@
 #include "opx_asr.h"
 
 #include <errno.h>
+#include <limits.h>
 #include <math.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -129,8 +130,12 @@ static int utf8_len(const unsigned char *p) {
 // JSON string; control characters escaped, invalid UTF-8 (whisper tokens can
 // split a multi-byte character) replaced by U+FFFD, length bounded.
 static void sb_json(sbuf *b, const char *s, size_t max_bytes) {
+  if (!s) {
+    sb_put(b, "\"\"", 2);
+    return;
+  }
   sb_put(b, "\"", 1);
-  const unsigned char *p = (const unsigned char *)(s ? s : "");
+  const unsigned char *p = (const unsigned char *)s;
   size_t used = 0;
   while (*p && used < max_bytes) {
     if (*p == '"' || *p == '\\') {
@@ -260,7 +265,8 @@ static const char *parse_string(const char *p, char *out, size_t cap,
   return p + 1;
 }
 
-// Top-level key lookup; 1 for strings, 2 for other scalars, 0 otherwise.
+// Top-level key lookup; 1 for strings, 2 for other scalars, -1 when the key
+// is present but its value does not fit `out` (or is malformed), 0 otherwise.
 static int json_find(const char *json, const char *key, char *out,
                      size_t cap) {
   char name[128];
@@ -280,7 +286,7 @@ static int json_find(const char *json, const char *key, char *out,
       char scratch[OPX_ASR_MAX_TEXT];
       p = parse_string(p, match ? out : scratch, match ? cap : sizeof scratch,
                        &ok);
-      if (!ok) return 0;
+      if (!ok) return match ? -1 : 0;
       if (match) return 1;
     } else {
       const char *start = p;
@@ -288,7 +294,7 @@ static int json_find(const char *json, const char *key, char *out,
       if (p == start || *start == '{' || *start == '[') return 0;
       if (match) {
         size_t n = (size_t)(p - start);
-        if (n >= cap) return 0;
+        if (n >= cap) return -1;
         memcpy(out, start, n);
         out[n] = 0;
         return 2;
@@ -354,8 +360,8 @@ static int wav_open(const char *path, wav_input *w) {
   FILE *f = fopen(path, "rb");
   if (!f) return OPX_ASR_E_INPUT_UNAVAILABLE;
   unsigned char hdr[12];
-  if (fread(hdr, 1, 12, f) != 12 || memcmp(hdr, "RIFF", 4) ||
-      memcmp(hdr + 8, "WAVE", 4)) {
+  if (fread(hdr, 1, 12, f) != 12 || memcmp(hdr, "RIFF", 4) != 0 ||
+      memcmp(hdr + 8, "WAVE", 4) != 0) {
     fclose(f);
     return OPX_ASR_E_INPUT_UNSUPPORTED;
   }
@@ -364,7 +370,7 @@ static int wav_open(const char *path, wav_input *w) {
     unsigned char ch[8];
     if (fread(ch, 1, 8, f) != 8) break;
     uint32_t size = le32(ch + 4);
-    if (!memcmp(ch, "fmt ", 4)) {
+    if (memcmp(ch, "fmt ", 4) == 0) {
       unsigned char fmt[16];
       if (size < 16 || fread(fmt, 1, 16, f) != 16) break;
       uint16_t format = le16(fmt), channels = le16(fmt + 2), bits = le16(fmt + 14);
@@ -374,8 +380,11 @@ static int wav_open(const char *path, wav_input *w) {
         return OPX_ASR_E_INPUT_UNSUPPORTED;
       }
       fmt_ok = 1;
-      if (fseek(f, (long)(size - 16 + (size & 1)), SEEK_CUR)) break;
-    } else if (!memcmp(ch, "data", 4)) {
+      // 64-bit arithmetic: size + pad can exceed uint32_t, and long is 32-bit
+      // on Windows, so an oversized skip is refused instead of wrapping.
+      int64_t skip = (int64_t)size - 16 + (int64_t)(size & 1);
+      if (skip > LONG_MAX || fseek(f, (long)skip, SEEK_CUR)) break;
+    } else if (memcmp(ch, "data", 4) == 0) {
       if (!fmt_ok) break;
       w->f = f;
       w->data_offset = ftell(f);
@@ -389,7 +398,8 @@ static int wav_open(const char *path, wav_input *w) {
                        : declared;
       return OPX_ASR_OK;
     } else {
-      if (fseek(f, (long)(size + (size & 1)), SEEK_CUR)) break;
+      int64_t skip = (int64_t)size + (int64_t)(size & 1);
+      if (skip > LONG_MAX || fseek(f, (long)skip, SEEK_CUR)) break;
     }
   }
   fclose(f);
@@ -738,9 +748,15 @@ int32_t opx_asr_job_create(opx_asr_model *model, const char *request_json,
     free(j);
     return OPX_ASR_E_INVALID_ARGUMENT;
   }
-  if (!json_str(request_json, "language", j->language, sizeof j->language) ||
-      !j->language[0]) {
+  // Only an absent or empty key means auto-detect; a value that is too long
+  // for j->language or is not a string is an invalid language, not "auto".
+  int lang_kind =
+      json_find(request_json, "language", j->language, sizeof j->language);
+  if (lang_kind == 0 || (lang_kind == 1 && !j->language[0])) {
     snprintf(j->language, sizeof j->language, "auto");
+  } else if (lang_kind != 1) {
+    free(j);
+    return OPX_ASR_E_LANGUAGE;
   }
   if (strcmp(j->language, "auto") != 0) {
     if (whisper_lang_id(j->language) < 0) {
